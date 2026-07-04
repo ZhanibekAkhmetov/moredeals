@@ -5,12 +5,19 @@
   "scripts": {
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@prisma/client": "latest"
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "dotenv": "^17.2.3",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
-    "prisma": "latest"
+    "@types/node": "^24.0.0",
+    "prisma": "^7.8.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   }
 }
