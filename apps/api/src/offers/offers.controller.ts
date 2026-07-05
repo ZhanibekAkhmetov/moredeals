@@ -1,4 +1,6 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OffersService } from './offers.service';
 
 @Controller('offers')
@@ -13,5 +15,17 @@ export class OffersController {
   @Get(':id/price-history')
   findPriceHistory(@Param('id') id: string) {
     return this.offersService.findPriceHistory(id);
+  }
+
+  @Post('refresh-imported')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  refreshImported() {
+    return this.offersService.refreshImported();
+  }
+
+  @Post(':id/refresh')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  refreshOne(@Param('id') id: string) {
+    return this.offersService.refreshOne(id);
   }
 }

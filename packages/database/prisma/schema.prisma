@@ -30,6 +30,41 @@ enum PaymentMethod {
   CASH_ON_DELIVERY
 }
 
+enum OfferSource {
+  DEMO
+  IMPORTED_FEED
+}
+
+enum ExtractionStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+enum MerchantFeedImportStatus {
+  PROCESSING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([role])
+}
+
 model Product {
   id          String           @id @default(cuid())
   name        String
@@ -53,9 +88,10 @@ model ProductVariant {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   name      String
   sku       String   @unique
-  color     String
+  color     String?
   storageGb Int
   ramGb     Int?
+  imageUrl  String?
   ean       String?  @unique
   gtin      String?  @unique
   mpn       String?  @unique
@@ -101,15 +137,27 @@ model Offer {
   shopProductReviewCount Int?
   matchConfidence        Decimal          @db.Decimal(5, 4)
   redirectUrl            String
+  imageUrl               String?
+  source                 OfferSource          @default(DEMO)
+  sourceName             String?
+  originalProductUrl     String?
+  resolvedProductUrl     String?
+  lastCheckedAt          DateTime?
+  lastExtractionStatus   ExtractionStatus?
+  lastExtractionWarnings String[]             @default([])
+  merchantFeedImportId   String?
+  merchantFeedImport     MerchantFeedImport?  @relation(fields: [merchantFeedImportId], references: [id], onDelete: SetNull)
   priceSnapshots         PriceSnapshot[]
   warrantyInfo           WarrantyInfo?
+  rawMerchantOffers      RawMerchantOffer[]
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
 
-  @@unique([variantId, shopId, condition])
+  @@unique([variantId, shopId, redirectUrl])
   @@index([variantId, totalPrice])
   @@index([shopId])
   @@index([stockStatus])
+  @@index([merchantFeedImportId])
 }
 
 model PriceSnapshot {
@@ -147,4 +195,41 @@ model WarrantyInfo {
   details        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model MerchantFeedImport {
+  id                    String                   @id @default(cuid())
+  sourceName            String
+  shopName              String?
+  shopDomain            String?
+  status                MerchantFeedImportStatus @default(PROCESSING)
+  importedRows          Int                      @default(0)
+  failedRows            Int                      @default(0)
+  createdOffers         Int                      @default(0)
+  updatedOffers         Int                      @default(0)
+  priceSnapshotsCreated Int                      @default(0)
+  errorMessages         Json?
+  offers                Offer[]
+  rawOffers             RawMerchantOffer[]
+  createdAt             DateTime                 @default(now())
+  completedAt           DateTime?
+
+  @@index([createdAt(sort: Desc)])
+  @@index([shopDomain])
+}
+
+model RawMerchantOffer {
+  id             String             @id @default(cuid())
+  importId       String
+  import         MerchantFeedImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  rowNumber      Int
+  rawData        Json
+  imported       Boolean            @default(false)
+  errorMessage   String?
+  offerId        String?
+  offer          Offer?             @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  createdAt      DateTime           @default(now())
+
+  @@unique([importId, rowNumber])
+  @@index([offerId])
 }

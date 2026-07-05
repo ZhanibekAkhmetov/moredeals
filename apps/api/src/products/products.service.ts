@@ -8,6 +8,7 @@ const variantSelect = {
   color: true,
   storageGb: true,
   ramGb: true,
+  imageUrl: true,
   ean: true,
   gtin: true,
   mpn: true,
@@ -19,6 +20,9 @@ export class ProductsService {
 
   findAll() {
     return this.prisma.product.findMany({
+      where: {
+        variants: { some: { offers: { some: { source: 'IMPORTED_FEED' } } } },
+      },
       select: {
         id: true,
         name: true,
@@ -67,7 +71,12 @@ export class ProductsService {
     const offers = await this.prisma.offer.findMany({
       where: { variant: { productId: id } },
       include: {
-        variant: { select: variantSelect },
+        variant: {
+          select: {
+            ...variantSelect,
+            product: { select: { imageUrl: true } },
+          },
+        },
         shop: { include: { returnPolicy: true } },
         warrantyInfo: true,
         priceSnapshots: {
@@ -78,9 +87,21 @@ export class ProductsService {
       orderBy: { totalPrice: 'asc' },
     });
 
-    return offers.map(({ priceSnapshots, ...offer }) => ({
-      ...offer,
-      latestPriceSnapshot: priceSnapshots[0] ?? null,
-    }));
+    const seen = new Set<string>();
+    return offers
+      .filter((offer) => {
+        const url =
+          offer.resolvedProductUrl ||
+          offer.originalProductUrl ||
+          offer.redirectUrl;
+        const key = `${offer.shopId}|${url}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map(({ priceSnapshots, ...offer }) => ({
+        ...offer,
+        latestPriceSnapshot: priceSnapshots[0] ?? null,
+      }));
   }
 }
